@@ -1,0 +1,10 @@
+
+RestoApp/.classpath
+RestoApp/.project
+/bin/
+.project
+.classpath
+*.DS_Store
+*.idea
+*.iml
+*.class

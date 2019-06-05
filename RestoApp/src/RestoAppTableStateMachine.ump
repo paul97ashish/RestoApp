@@ -1,0 +1,142 @@
+class Table {
+   status {
+      Available {
+         startOrder() / {
+            new Order(new java.sql.Date(Calendar.getInstance().getTime().getTime()), new java.sql.Time(Calendar.getInstance().getTime().getTime()), this.getRestoApp(), this);
+         } -> NothingOrdered;
+         addToOrder(Order o) / {
+            o.addTable(this);
+         } -> NothingOrdered; 
+      }
+      NothingOrdered {
+         orderItem(int quantity, Order o, Seat s, PricedMenuItem i) [quantityNotNegative(quantity)] / {
+            o.addOrderItem(quantity, i, s);
+         } -> Ordered; 
+         addToOrderItem(OrderItem i, Seat s) / {
+            i.addSeat(s);
+         } -> Ordered;
+         endOrder(Order o) / {
+            if (!o.removeTable(this)) {
+               if (o.numberOfTables() == 1) {
+                  o.delete();
+               }
+            }
+         } -> Available;
+      }
+      Ordered {
+         orderItem(int quantity, Order o, Seat s, PricedMenuItem i) [quantityNotNegative(quantity)] / {
+            o.addOrderItem(quantity, i, s);
+         } -> Ordered; 
+         addToOrderItem(OrderItem i, Seat s) / {
+            i.addSeat(s);
+         } -> Ordered;
+         cancelOrderItem(OrderItem i) [isLastItem(i)] / {
+         i.delete();
+            // delete order item
+         } -> NothingOrdered;
+         cancelOrderItem(OrderItem i) [!isLastItem(i)] / {
+         i.delete();
+            // delete order item
+         } -> Ordered;
+         cancelOrder() / {
+          List<Seat> seats = getCurrentSeats();
+			for(Seat s1: seats ){
+				List<OrderItem> orderItems =s1.getOrderItems();
+				List<OrderItem> copyOfOrderItem = new ArrayList<OrderItem>(orderItems);
+				for(OrderItem o1 : copyOfOrderItem) {
+					if(this.getOrder(this.getOrders().size()-1).getOrderItems().contains(o1)) {
+					cancelOrderItem(o1);
+				}
+ 		   }}
+            // delete all order items of the table
+         } -> NothingOrdered;
+         billForSeat(Order o, Seat s) / {
+            List<Bill> orderbills = o.getBills(); //all the  bills of the current order
+    	  	List<Bill> copyorderbills = new ArrayList<Bill>(orderbills);
+    	  	for(Bill b1: copyorderbills) {    		 
+
+    		  if(b1.getIssuedForSeats().contains(s)) {
+    			  if(b1.numberOfIssuedForSeats()==1) { //checking if it was the last seat
+        			  b1.delete();
+        		  }
+    			  else {
+    				  b1.removeIssuedForSeat(s);
+    			  }
+    		  }	 
+    	  }
+    	  	
+    	  new Bill(o, this.getRestoApp(), s);
+         } -> Ordered;
+         addToBill(Bill b, Seat s) / {
+            
+			List<Bill> orderBills = b.getOrder().getBills(); //Get the list of bills of current Order
+
+        	for(Bill b1: orderBills) {    		 
+        		if(b1.getIssuedForSeats().contains(s)) {
+        			if(b1.numberOfIssuedForSeats()==1) { //checking if it was the last seat
+        				b1.delete();
+        			}
+        			else {
+        				b1.removeIssuedForSeat(s);
+        			}
+        		}	 
+       		 }
+       
+       		 b.addIssuedForSeat(s);
+         } -> Ordered;
+         endOrder(Order o) [allSeatsBilled()] / {
+         } -> Available;
+      }
+   }
+   
+   // check that the provided quantity is an integer greater than 0
+   private boolean quantityNotNegative(int quantity) {
+      // TODO -- done(needs testing)
+      return (quantity > 0);
+   }
+
+   // check that the provided order item is the last item of the current order of the table
+   private boolean isLastItem(OrderItem i){
+		 //TODO --done(needs testing)
+		  Order o1 = i.getOrder();	  
+		  if (o1.getOrderItems().size() == 1) {
+			  return true;
+		  }
+		  else {	  
+			  return false;
+		  }
+	   }
+
+   // check that all seats of the table have a bill that belongs to the current order of the table 
+   private boolean allSeatsBilled(){
+		   //TODO --done(needs testing)
+		   
+		   List<Bill> cool = this.getOrder(this.numberOfOrders()-1).getBills();
+		   List<Seat> s = this.getCurrentSeats();
+		   for(Seat s1: s) {
+			   if(!s1.hasOrderItems()) {
+				   s.remove(s1);
+			   }
+		   }
+		   
+		   boolean asus = false;
+		   for (Seat s1: s) {  
+			   asus = false;
+			   List<Bill> seatBill = s1.getBills();
+			   for (Bill b1: seatBill) {
+				   for (Bill b2: cool) {
+					   if(b1==b2) {
+						   asus = true;
+					   }
+				   }
+			   }
+			   if (!asus) {
+				   return false;
+			   }
+		   }
+		   
+		   return asus;
+		   
+	   }
+
+}
